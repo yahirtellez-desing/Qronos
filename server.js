@@ -22,7 +22,7 @@ const app = express();
    ────────────────────────────────────────────── */
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.API_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 const GEMINI_API_VERSION = process.env.GEMINI_API_VERSION || 'v1beta';
 
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
