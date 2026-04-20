@@ -29,21 +29,33 @@ const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/${GEMINI_API_
 const GEMINI_MODELS_ENDPOINT = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models?key=${GEMINI_API_KEY}`;
 
 /* ──────────────────────────────────────────────
-   MIDDLEWARES
+   CORS
+   - Permite localhost
+   - Permite cualquier subdominio de vercel.app
+   - Permite tu dominio qronos.com / www.qronos.com
+   - Resuelve preflight OPTIONS
    ────────────────────────────────────────────── */
-app.use(cors({
-  origin: [
-    'http://localhost',
-    'http://localhost:5500',
-    'http://127.0.0.1',
-    'http://127.0.0.1:5500',
-    'http://localhost:3001',
-    'https://qronos.vercel.app',
-  ],
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // Postman, curl, server-to-server
+
+    const allowed =
+      origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1') ||
+      /\.vercel\.app$/i.test(new URL(origin).hostname) ||
+      origin === 'https://qronos.com' ||
+      origin === 'https://www.qronos.com';
+
+    if (allowed) return callback(null, true);
+
+    return callback(null, false);
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
-}));
+};
 
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 
 /* ──────────────────────────────────────────────
@@ -101,34 +113,37 @@ async function callGemini(prompt) {
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    GEMINI_ENDPOINT,
     {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         contents: [
           {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ]
-      })
+            role: 'user',
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
     }
   );
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    console.error("Gemini error completo:", data);
-    throw new Error(`Gemini API error ${response.status}`);
+    console.error('Gemini error completo:', data);
+    const msg = data?.error?.message
+      ? `${data.error.message}`
+      : `HTTP ${response.status}`;
+    throw new Error(`Gemini API error ${response.status}: ${msg}`);
   }
 
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!text) {
-    throw new Error("Gemini no devolvió respuesta válida");
+    throw new Error('Gemini no devolvió respuesta válida');
   }
 
   return text.trim();
