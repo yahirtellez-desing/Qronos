@@ -24,9 +24,6 @@ app.use(cors({
   origin: [
     'http://localhost',
     'http://localhost:5500',
-    'http://127.0.0.1',
-    'http://127.0.0.1:5500',
-    'http://localhost:3001',
     // Agrega tu dominio de producción aquí:
     'https://qronos.vercel.app',
   ],
@@ -40,8 +37,8 @@ app.use(express.json({ limit: '1mb' }));
    VALIDACIÓN DE API KEY
    ────────────────────────────────────────────── */
 const GEMINI_API_KEY = process.env.API_KEY;
-const GEMINI_MODEL   = 'gemini-1.5-flash-latest';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
 if (!GEMINI_API_KEY) {
   console.error('\n⚠️  API_KEY no encontrada en variables de entorno.');
