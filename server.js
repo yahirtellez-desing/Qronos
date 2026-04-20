@@ -100,42 +100,35 @@ async function callGemini(prompt) {
     throw new Error('API_KEY no configurada');
   }
 
-  const response = await fetch(GEMINI_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: prompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        topK: 40,
-        topP: 0.9,
-        maxOutputTokens: 800,
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    }),
-  });
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }]
+          }
+        ]
+      })
+    }
+  );
 
-  const data = await response.json().catch(() => ({}));
+  const data = await response.json();
 
   if (!response.ok) {
-    const errMsg = data?.error?.message
-      ? JSON.stringify(data.error, null, 2)
-      : JSON.stringify(data, null, 2);
-
-    console.error('Gemini API error:', response.status, errMsg);
-    throw new Error(`Gemini API respondió con status ${response.status}: ${errMsg}`);
+    console.error("Gemini error completo:", data);
+    throw new Error(`Gemini API error ${response.status}`);
   }
 
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
   if (!text) {
-    throw new Error(`Gemini devolvió respuesta vacía o inesperada: ${JSON.stringify(data)}`);
+    throw new Error("Gemini no devolvió respuesta válida");
   }
 
   return text.trim();
