@@ -9,8 +9,8 @@
    CONSTANTS & CONFIG
    ────────────────────────────────────────────── */
 const STORAGE_KEY   = 'qronos_v2_records';
-const API_BASE      = 'http://localhost:3000'; // Backend Node.js
-const PLANTAS_LIST  = ['Planta A', 'Planta B', 'Planta C', 'Planta D', 'Planta E', 'Planta F'];
+const API_BASE      = 'https://qronos-production.up.railway.app/health'; // Backend Node.js
+const PLANTAS_LIST  = ['Caldos', 'Liquidos', 'Promociones', 'Krones Pet', 'Krones Lata', 'SI DEL'];
 const META_DEFAULT  = 90; // % meta por defecto
 
 /* ──────────────────────────────────────────────
