@@ -11,7 +11,7 @@
 const STORAGE_KEY   = 'qronos_v2_records';
 const API_BASE      = 'https://qronos-production.up.railway.app/health'; // Backend Node.js
 const PLANTAS_LIST  = ['Caldos', 'Liquidos', 'Promociones', 'Krones Pet', 'Krones Lata', 'SI DEL'];
-const META_DEFAULT  = 90; // % meta por defecto
+const META_DEFAULT  = 70; // % meta por defecto
 
 /* ──────────────────────────────────────────────
    STATE
