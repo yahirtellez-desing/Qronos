@@ -92,57 +92,36 @@ Responde de forma ejecutiva y estructurada:`;
    ────────────────────────────────────────────── */
 async function callGemini(prompt) {
   if (!GEMINI_API_KEY) {
-    throw new Error('API_KEY no configurada en el servidor. Revisa el archivo .env');
+    throw new Error('API_KEY no configurada');
   }
 
-  const body = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-        role: 'user',
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    ],
-    generationConfig: {
-      temperature:     0.4,     // Respuestas más determinísticas para análisis
-      topK:            40,
-      topP:            0.9,
-      maxOutputTokens: 800,
-      stopSequences:   [],
-    },
-    safetySettings: [
-      { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-    ],
-  };
-
-  const response = await fetch(GEMINI_ENDPOINT, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }]
+          }
+        ]
+      })
+    }
+  );
 
   if (!response.ok) {
     const errText = await response.text();
-    console.error('Gemini API error:', response.status, errText);
+    console.error("Gemini API error:", response.status, errText);
     throw new Error(`Gemini API respondió con status ${response.status}: ${errText}`);
   }
 
   const data = await response.json();
 
-  // Extrae el texto de la respuesta
-  const candidates = data?.candidates;
-  if (!candidates || candidates.length === 0) {
-    throw new Error('Gemini no devolvió candidatos en la respuesta.');
-  }
-
-  const text = candidates[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('Gemini devolvió respuesta vacía o con formato inesperado.');
-  }
-
-  return text.trim();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta";
 }
 
 /* ──────────────────────────────────────────────
