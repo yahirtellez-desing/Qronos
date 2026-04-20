@@ -9,7 +9,7 @@
    CONSTANTS & CONFIG
    ────────────────────────────────────────────── */
 const STORAGE_KEY   = 'qronos_v2_records';
-const API_BASE      = 'https://qronos-production.up.railway.app/health'; // Backend Node.js
+const API_BASE      = 'https://qronos-production.up.railway.app'; // Backend Node.js
 const PLANTAS_LIST  = ['Caldos', 'Liquidos', 'Promociones', 'Krones Pet', 'Krones Lata', 'SI DEL'];
 const META_DEFAULT  = 70; // % meta por defecto
 
@@ -100,8 +100,8 @@ function loadRecords() {
 /** Genera datos de demostración para los últimos 14 días */
 function generateSeedData() {
   const records = [];
-  const bases   = { 'Planta A': 91, 'Planta B': 85, 'Planta C': 93, 'Planta D': 78, 'Planta E': 88 };
-  const metas   = { 'Planta A': 90, 'Planta B': 88, 'Planta C': 90, 'Planta D': 85, 'Planta E': 90 };
+  const bases   = { 'Caldos': 80, 'Liquidos': 80, 'Promociones': 80, 'Krones Pet': 80, 'Krones Lata': 80, 'SI DEL': 80 };
+  const metas   = { 'Caldos': 80, 'Liquidos': 81, 'Promociones': 81, 'Krones Pet':70, 'Krones Lata': 71, 'SI DEL': 61 };
 
   for (let i = 13; i >= 0; i--) {
     const fecha = offsetDate(-i);
@@ -606,7 +606,7 @@ function buildExecutiveSummary() {
   const mejor  = sorted[0];
   const peor   = sorted[sorted.length - 1];
 
-  let texto = `Reporte ejecutivo de eficiencia al ${fechaText}. `;
+  let texto = `Reporte de eficiencia al ${fechaText}. `;
 
   items.forEach(rec => {
     const delta    = (rec.eficiencia - rec.meta).toFixed(1);
@@ -626,7 +626,7 @@ function buildExecutiveSummary() {
     texto += 'Todas las plantas están cumpliendo su meta. ';
   }
 
-  texto += 'Fin del reporte.';
+  texto += 'Fin del reporte señor.';
   return texto;
 }
 
