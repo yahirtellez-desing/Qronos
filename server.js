@@ -1,21 +1,32 @@
+'use strict';
+
 /* ============================================================
    QRONOS 2.0 · server.js
    Backend — Node.js + Express + Gemini API
    ============================================================
    Endpoints:
      GET  /health      → Status del servidor
+     GET  /models      → Lista modelos disponibles en Gemini
      POST /analizar    → Análisis IA con Gemini
    ============================================================ */
 
-'use strict';
-
-const express  = require('express');
-const cors     = require('cors');
-const fetch    = require('node-fetch');   // node-fetch@2 para CommonJS
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
-const app  = express();
+const app = express();
+
+/* ──────────────────────────────────────────────
+   CONFIG
+   ────────────────────────────────────────────── */
 const PORT = process.env.PORT || 3000;
+const GEMINI_API_KEY = process.env.API_KEY || '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_API_VERSION = process.env.GEMINI_API_VERSION || 'v1beta';
+
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_MODELS_ENDPOINT = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models?key=${GEMINI_API_KEY}`;
 
 /* ──────────────────────────────────────────────
    MIDDLEWARES
@@ -24,30 +35,28 @@ app.use(cors({
   origin: [
     'http://localhost',
     'http://localhost:5500',
-    // Agrega tu dominio de producción aquí:
+    'http://127.0.0.1',
+    'http://127.0.0.1:5500',
+    'http://localhost:3001',
     'https://qronos.vercel.app',
+    'https://www.qronos.com',
   ],
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type'],
 }));
 
 app.use(express.json({ limit: '1mb' }));
 
 /* ──────────────────────────────────────────────
-   VALIDACIÓN DE API KEY
+   VALIDACIONES
    ────────────────────────────────────────────── */
-const GEMINI_API_KEY = process.env.API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
 if (!GEMINI_API_KEY) {
   console.error('\n⚠️  API_KEY no encontrada en variables de entorno.');
-  console.error('   Crea un archivo .env con: API_KEY=tu_clave_de_gemini\n');
-  // No cerramos el proceso para que se pueda probar /health
+  console.error('   Agrega API_KEY en Railway o en tu archivo .env.\n');
 }
 
 /* ──────────────────────────────────────────────
-   PROMPT DEL SISTEMA — Director de Operaciones IA
+   PROMPT DEL SISTEMA
    ────────────────────────────────────────────── */
 const SYSTEM_PROMPT = `Eres un Director de Operaciones experto en eficiencia industrial con más de 20 años de experiencia en manufactura, gestión de KPIs y mejora continua (Lean, Six Sigma).
 
@@ -68,7 +77,7 @@ REGLAS DE RESPUESTA:
 - Prioriza las alertas más críticas primero`;
 
 /* ──────────────────────────────────────────────
-   HELPER — Construye el prompt dinámico
+   HELPERS
    ────────────────────────────────────────────── */
 function buildPrompt(pregunta, datos) {
   const json = JSON.stringify(datos, null, 2);
@@ -87,82 +96,128 @@ ${pregunta}
 Responde de forma ejecutiva y estructurada:`;
 }
 
-/* ──────────────────────────────────────────────
-   HELPER — Llamada a Gemini API
-   ────────────────────────────────────────────── */
 async function callGemini(prompt) {
   if (!GEMINI_API_KEY) {
     throw new Error('API_KEY no configurada');
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+  const response = await fetch(GEMINI_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        topK: 40,
+        topP: 0.9,
+        maxOutputTokens: 800,
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }]
-          }
-        ]
-      })
-    }
-  );
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const errText = await response.text();
-    console.error("Gemini API error:", response.status, errText);
-    throw new Error(`Gemini API respondió con status ${response.status}: ${errText}`);
+    const errMsg = data?.error?.message
+      ? JSON.stringify(data.error, null, 2)
+      : JSON.stringify(data, null, 2);
+
+    console.error('Gemini API error:', response.status, errMsg);
+    throw new Error(`Gemini API respondió con status ${response.status}: ${errMsg}`);
   }
 
-  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sin respuesta";
+  if (!text) {
+    throw new Error(`Gemini devolvió respuesta vacía o inesperada: ${JSON.stringify(data)}`);
+  }
+
+  return text.trim();
+}
+
+async function listGeminiModels() {
+  if (!GEMINI_API_KEY) {
+    throw new Error('API_KEY no configurada');
+  }
+
+  const response = await fetch(GEMINI_MODELS_ENDPOINT, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errMsg = data?.error?.message
+      ? JSON.stringify(data.error, null, 2)
+      : JSON.stringify(data, null, 2);
+
+    throw new Error(`No se pudo listar modelos: ${response.status} ${errMsg}`);
+  }
+
+  return data;
 }
 
 /* ──────────────────────────────────────────────
-   ENDPOINT: GET /health
-   Verifica que el servidor esté activo
+   ROUTES
    ────────────────────────────────────────────── */
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    name: 'QRONOS 2.0 Backend',
+    endpoints: ['/health', '/models', '/analizar'],
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
-    status:  'online',
+    status: 'online',
     version: '2.0.0',
-    server:  'QRONOS 2.0 Backend',
-    gemini:  GEMINI_API_KEY ? 'configured' : 'missing_api_key',
-    uptime:  Math.floor(process.uptime()) + 's',
+    server: 'QRONOS 2.0 Backend',
+    gemini: GEMINI_API_KEY ? 'configured' : 'missing_api_key',
+    model: GEMINI_MODEL,
+    apiVersion: GEMINI_API_VERSION,
+    uptime: Math.floor(process.uptime()) + 's',
     timestamp: new Date().toISOString(),
   });
 });
 
-/* ──────────────────────────────────────────────
-   ENDPOINT: POST /analizar
-   Recibe pregunta + datos → llama a Gemini → devuelve respuesta
-   
-   Body esperado:
-   {
-     "pregunta": "¿Qué planta está peor?",
-     "datos": {
-       "fecha_reporte": "2025-01-15",
-       "snapshot_dia": [...],
-       "historial_7_dias": {...}
-     }
-   }
-   ────────────────────────────────────────────── */
+app.get('/models', async (req, res) => {
+  try {
+    const data = await listGeminiModels();
+    res.json({
+      ok: true,
+      model: GEMINI_MODEL,
+      apiVersion: GEMINI_API_VERSION,
+      data,
+    });
+  } catch (err) {
+    console.error('Error en /models:', err.message);
+    res.status(500).json({
+      ok: false,
+      error: err.message,
+    });
+  }
+});
+
 app.post('/analizar', async (req, res) => {
   const { pregunta, datos } = req.body;
 
-  // Validaciones de entrada
   if (!pregunta || typeof pregunta !== 'string' || pregunta.trim().length === 0) {
     return res.status(400).json({ error: 'El campo "pregunta" es requerido y debe ser texto.' });
   }
+
   if (!datos || typeof datos !== 'object') {
     return res.status(400).json({ error: 'El campo "datos" es requerido y debe ser un objeto JSON.' });
   }
+
   if (pregunta.length > 500) {
     return res.status(400).json({ error: 'La pregunta no puede exceder 500 caracteres.' });
   }
@@ -172,40 +227,34 @@ app.post('/analizar', async (req, res) => {
   console.log(`   Plantas en snapshot: ${datos.snapshot_dia?.length ?? 0}`);
 
   try {
-    const prompt    = buildPrompt(pregunta.trim(), datos);
+    const prompt = buildPrompt(pregunta.trim(), datos);
     const respuesta = await callGemini(prompt);
 
     console.log(`   ✅ Respuesta de Gemini (${respuesta.length} chars)`);
 
     return res.json({
-      ok:        true,
+      ok: true,
       respuesta,
-      modelo:    GEMINI_MODEL,
+      modelo: GEMINI_MODEL,
+      apiVersion: GEMINI_API_VERSION,
       timestamp: new Date().toISOString(),
     });
-
   } catch (err) {
-    console.error(`   ❌ Error al llamar Gemini:`, err.message);
+    console.error('   ❌ Error al llamar Gemini:', err.message);
 
     const statusCode = err.message.includes('API_KEY') ? 503 : 500;
 
     return res.status(statusCode).json({
-      ok:    false,
+      ok: false,
       error: err.message,
     });
   }
 });
 
-/* ──────────────────────────────────────────────
-   MIDDLEWARE — Rutas no encontradas
-   ────────────────────────────────────────────── */
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint no encontrado', path: req.path });
 });
 
-/* ──────────────────────────────────────────────
-   MIDDLEWARE — Manejo de errores global
-   ────────────────────────────────────────────── */
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
   console.error('Error no manejado:', err);
   res.status(500).json({ error: 'Error interno del servidor.' });
@@ -214,18 +263,15 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 /* ──────────────────────────────────────────────
    INICIO DEL SERVIDOR
    ────────────────────────────────────────────── */
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('\n╔═══════════════════════════════════════════╗');
   console.log('║        QRONOS 2.0 · Backend IA           ║');
   console.log('╠═══════════════════════════════════════════╣');
   console.log(`║  ✅ Servidor en: http://localhost:${PORT}     ║`);
-  console.log(`║  📡 Gemini: ${GEMINI_API_KEY ? '✅ Configurado       ' : '❌ Falta API_KEY     '}  ║`);
-  console.log(`║  📋 Modelo: ${GEMINI_MODEL.slice(0,20).padEnd(20)} ║`);
+  console.log(`║  📡 Gemini: ${GEMINI_API_KEY ? '✅ Configurado' : '❌ Falta API_KEY'}  ║`);
+  console.log(`║  📋 Modelo: ${GEMINI_MODEL.padEnd(20)} ║`);
+  console.log(`║  🧩 API: ${GEMINI_API_VERSION.padEnd(22)} ║`);
   console.log('╚═══════════════════════════════════════════╝\n');
-
-  if (!GEMINI_API_KEY) {
-    console.warn('⚠️  Para activar IA real, crea un archivo .env con:\n   API_KEY=TU_GEMINI_API_KEY\n');
-  }
 });
 
-module.exports = app; // Para testing
+module.exports = app;
