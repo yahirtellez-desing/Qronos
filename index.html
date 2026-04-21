@@ -295,22 +295,26 @@
           <label class="form-label">Planta</label>
           <select class="form-input" id="fieldPlanta" required>
             <option value="">Seleccionar…</option>
-            <option value="Caldos">Caldos</option>
-            <option value="Liquidos">Liquidos</option>
-            <option value="Promociones">Promociones</option>
-            <option value="Krones Pet">Krones Pet</option>
-            <option value="Krones Lata">Krones Lata</option>
-            <option value="SI DEL">SI DEL</option>
+            <optgroup label="Azteca">
+              <option value="Caldos">Caldos</option>
+              <option value="Líquidos">Líquidos</option>
+              <option value="Promociones">Promociones</option>
+            </optgroup>
+            <optgroup label="RTD's">
+              <option value="Krones Pet">Krones Pet</option>
+              <option value="Krones Lata">Krones Lata</option>
+              <option value="SI DEL">SI DEL</option>
+            </optgroup>
           </select>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Eficiencia (%)</label>
+            <label class="form-label">Eficiencia % <span id="zeroHint" style="font-weight:400;color:#9aafc7">(0 = Sin Producción)</span></label>
             <input type="number" class="form-input" id="fieldEficiencia" min="0" max="200" step="0.1" required placeholder="87.5" />
           </div>
           <div class="form-group">
-            <label class="form-label">Meta (%)</label>
-            <input type="number" class="form-input" id="fieldMeta" min="0" max="200" step="0.1" required placeholder="90.0" />
+            <label class="form-label">Meta % <span id="metaAutoHint" style="font-weight:400;color:#1a80ff;font-size:.68rem">← auto</span></label>
+            <input type="number" class="form-input" id="fieldMeta" min="0" max="200" step="0.1" required placeholder="73" />
           </div>
         </div>
         <div class="modal-actions">
@@ -327,5 +331,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
-
